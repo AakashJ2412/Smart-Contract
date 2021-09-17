@@ -23,10 +23,15 @@ contract Marketplace {
         uint indexed listingID,
         string itemName,
         uint askingPrice,
-        address uniqueSellerID,
-    )
+        address uniqueSellerID
+    );
 
-    function createListing(uint256 price, string itemName, string itemDesc, string password) public {
+    function createListing(
+        uint256 price,
+        string memory itemName,
+        string memory itemDesc,
+        string memory password
+    ) public {
         require(price > 0, "Price must be atleast 1 wei");
 
         listings[itemCount] = Listing(
@@ -43,9 +48,9 @@ contract Marketplace {
         emit ListingCreated(
             itemCount,
             itemName,
-            askingPrice,
+            price,
             msg.sender
-        )
+        );
         itemCount += 1;
     }
 
@@ -56,7 +61,7 @@ contract Marketplace {
       Listing[] memory items = new Listing[](unsoldItemCount);
       for (uint i = 0; i < itemCount; i++) {
         if (listings[i].state == State.UNSOLD) {
-          MarketItem storage currentItem = idToMarketItem[i];
+          Listing storage currentItem = listings[i];
           items[currentIndex] = currentItem;
           currentIndex += 1;
         }
