@@ -3,13 +3,13 @@ pragma solidity >=0.4.22 <0.9.0;
 
 
 /// @title Marketplace for selling items
-/// @author Ishaan Shah
+/// @author Aakash Jain, Ishaan Shah, Zeeshan Ahmed
 /// @notice View, sell, and buy items
 /// @dev It is assumed that the seller will deliver after getting paid
 contract Marketplace {
     /// @dev Possible states that a Listing can take
     enum State { UNSOLD, SOLD, DELIVERED }
-    
+
     /// @dev Stores the details of a listing
     struct Listing {
         uint listingID;
@@ -21,13 +21,13 @@ contract Marketplace {
         string item;
         State state;
     }
-    
+
     uint private itemCount = 0;
     uint private itemSold = 0;
-    
+
     /// @dev mapping for all the Listing
     mapping(uint256 => Listing) private listings;
-    
+
     /// @notice Triggered to store the details of a listing on transaction logs
     /// @dev Must not store the item itself for privacy
     /// @param listingID Unique Id for the listing 
@@ -40,7 +40,7 @@ contract Marketplace {
         uint askingPrice,
         address uniqueSellerID
     );
-    
+
     /// @notice Function to add listing to the Marketplace
     /// @dev Triggers the event for logging
     /// @param price Price set by the seller
@@ -74,7 +74,7 @@ contract Marketplace {
         );
         itemCount += 1;
     }
-    
+
     /// @notice Function to print all the active listings
     /// @return Listing The list of all active listings
     function fetchMarketItems() public view returns (Listing[] memory) {
@@ -91,7 +91,7 @@ contract Marketplace {
         }
         return items;
     }
-    
+
     /// @notice Triggered to store the details of the sold listing on transaction logs
     /// @dev Must not store the item itself for privacy
     /// @param listingID Unique Id for the listing 
@@ -99,22 +99,32 @@ contract Marketplace {
     /// @param askingPrice Price set by the seller
     /// @param uniqueSellerID The public key for the transaction
     /// @param uniqueBuyerID The public key for the transaction
-    event ListingSold ( 
+    event ListingSold (
         uint indexed listingID,
         string itemName,
         uint askingPrice,
         address uniqueSellerID,
         address uniqueBuyerID
     );
-    
+
     /// @notice Function to buy a listing
     /// @dev Triggers the event for logging
     /// @param itemId The item the buyer wants to buy
-    function buyListing(uint itemId) external payable {
-        require(msg.value == listings[itemId].askingPrice, "Incorrect Price");
+    function buyListing(uint itemId) external returns(string memory) {
         listings[itemId].uniqueBuyerID = msg.sender;
         listings[itemId].state = State.SOLD;
-        
+
+        return listings[itemId].item;
+    }
+
+    /// @notice Function to confirm a listing
+    /// @dev Triggers the event for logging
+    /// @param itemId The item the buyer wants to confirm
+    function confirmListing(uint itemId) external payable {
+        require(listings[itemId].state == State.SOLD && listings[itemId].uniqueBuyerID == msg.sender, "Can't confirm");
+        listings[itemId].state = State.DELIVERED;
+        require(listings[itemId].uniqueSellerID.send(listings[itemId].askingPrice), "Failed to transfer");
+
         emit ListingSold(
             listings[itemId].listingID,
             listings[itemId].itemName,
@@ -123,21 +133,14 @@ contract Marketplace {
             msg.sender
         );
     }
-    
-    /// @notice Function to confirm a listing
-    /// @dev Triggers the event for logging
+
+    /// @notice Function to allow seller to relist the item if the buyer doesn't send correct amount of Ether, doesn't confirm the delivery or change the password
+    /// @dev TODO
     /// @param itemId The item the buyer wants to confirm
-    function confirmListing(uint itemId) external payable {
-        require(listings[itemId].state == State.SOLD && listings[itemId].uniqueBuyerID == msg.sender, "Can't confirm");
-        listings[itemId].state = State.DELIVERED;
-        require(listings[itemId].uniqueSellerID.send(listings[itemId].askingPrice), "Failed to transfer");
-        
-        emit ListingSold(
-            listings[itemId].listingID,
-            listings[itemId].itemName,
-            listings[itemId].askingPrice,
-            listings[itemId].uniqueSellerID,
-            msg.sender
-        );
+    /// @param item The new item (i.e the hashed password)
+    function relistListing(uint itemId, string memory item) external {
+        require(listings[itemId].state != State.DELIVERED && listings[itemId].uniqueSellerID == msg.sender, "Can't relist");
+        listings[itemId].state = State.UNSOLD;
+        listings[itemId].item = item;
     }
 }
