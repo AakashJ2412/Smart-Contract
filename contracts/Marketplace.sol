@@ -23,8 +23,9 @@ contract Marketplace {
         State state;
     }
 
+    address payable public owner;
     uint private itemCount = 0;
-    uint private itemSold = 0;
+    uint public itemSold = 0;
 
     /// @dev mapping for all the Listing
     mapping(uint256 => Listing) private listings;
@@ -41,6 +42,11 @@ contract Marketplace {
         uint askingPrice,
         address uniqueSellerID
     );
+
+    /// @notice Constructor to define the marketplace owner
+    constructor() public {
+        owner = msg.sender;
+    }
 
     /// @notice Function to add listing to the Marketplace
     /// @dev Triggers the event for logging
@@ -179,6 +185,13 @@ contract Marketplace {
             listings[itemId].askingPrice,
             msg.sender
         );
+    }
+
+    /// @notice Function that clears the marketplace
+    /// @dev Useful for testing 
+    function killMarketplace() external {
+        require(msg.sender == owner, "Only the owner can kill the marketplace");
+        selfdestruct(owner);
     }
 }
 
