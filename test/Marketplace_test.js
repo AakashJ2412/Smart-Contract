@@ -6,7 +6,7 @@ contract("Marketplace", (accounts) => {
     let marketplace; 
 
     const listingObj = {
-        price: 100,
+        price: 10,
         itemName : "SixtyNine",
         itemDesc : "Smelly Cat smelly cat",
         item : "hash"
@@ -77,23 +77,115 @@ contract("Marketplace", (accounts) => {
             ,{from: accounts[i]});
         }
 
-        // assert item sold = 0, after buying assert to 1, and assert hash value
-        // assert event as well
+        let boughtItem = await marketplace.buyListing.call(0,{from: accounts[3]});
 
-        const boughtItem = await marketplace.buyListing.call(0,{from: accounts[3]});
-        console.log(boughtItem)
-        // listings = await marketplace.fetchMarketItems()
-        // assert.equal(listings.length,2);
-        // for(let i=0;i<2;i++){
-        //     assert.equal(listings[i].uniqueSellerID,accounts[i+1]);
-        // }
+        assert.equal(boughtItem,listingObj.item+0)
+
+        let tx = await marketplace.buyListing(1,{from: accounts[4]});
+
+        const { logs } = tx;
+        assert.ok(Array.isArray(logs));
+        assert.equal(logs.length, 1);
+        const log = logs[0];
+        assert.equal(log.event, 'ListingSold');
+        assert.equal(log.args.itemName.toString(), listingObj.itemName);
+        assert.equal(log.args.listingID, 1);
+        assert.equal(log.args.askingPrice, listingObj.price);
+        assert.equal(log.args.uniqueSellerID, accounts[1]);
+        assert.equal(log.args.uniqueBuyerID, accounts[4]);
     })
 
-    // check delivery. 
-    // 3 tests - first, throws error for wrong buyer id
-    // second - incorrect amount - also check wallet value
-    // third - successful amount - also check wallet value
+    it("Checks if bought items aren't collected by wrong address", async () => {
+        
+        await marketplace.createListing(
+            listingObj.price,
+            listingObj.itemName,
+            listingObj.itemDesc,
+            listingObj.item
+        ,{from: accounts[0]});
+        
+        await marketplace.buyListing(0,{from: accounts[1]});
 
-    // check relisting
+        try{
+            await marketplace.confirmListing(0, {from: accounts[2],value: listingObj.price});
+            throw error;
+        }
+        catch (error) {
+            assert(error, "Expected an error but did not get one");
+            assert(error.message.startsWith("Returned error: VM Exception while processing transaction: revert Can't confirm"), "Expected an error 'Can't confirm' but got '" + error.message + "' instead");
+        }
+    })
+
+    it("Checks if listings are paid with incorrect amount", async () => {
+        
+        await marketplace.createListing(
+            listingObj.price,
+            listingObj.itemName,
+            listingObj.itemDesc,
+            listingObj.item
+        ,{from: accounts[0]});
+        
+        await marketplace.buyListing(0,{from: accounts[1]});
+
+        try{
+            await marketplace.confirmListing(0, {from:accounts[1],value: listingObj.price-1});
+            throw error;
+        }
+        catch (error) {
+            assert(error, "Expected an error but did not get one");
+            assert(error.message.startsWith("Returned error: VM Exception while processing transaction: revert Failed to transfer"), "Expected an error 'Failed to transfer' but got '" + error.message + "' instead");
+        }
+    })
+
+    it("Checks if listings are delivered with correct amount", async () => {
+        
+        await marketplace.createListing(
+            listingObj.price,
+            listingObj.itemName,
+            listingObj.itemDesc,
+            listingObj.item
+        ,{from: accounts[0]});
+        
+        await marketplace.buyListing(0,{from: accounts[1]});
+
+        const tx = await marketplace.confirmListing(0, {from:accounts[1],value: listingObj.price});
+        const { logs } = tx;
+        assert.ok(Array.isArray(logs));
+        assert.equal(logs.length, 1);
+
+        const log = logs[0];
+        assert.equal(log.event, 'ListingDelivered');
+        assert.equal(log.args.itemName.toString(), listingObj.itemName);
+        assert.equal(log.args.listingID, 0);
+        assert.equal(log.args.askingPrice, listingObj.price);
+        assert.equal(log.args.uniqueSellerID, accounts[0]);
+        assert.equal(log.args.uniqueBuyerID, accounts[1]);
+        
+    })
+
+    it("Checks if bought items are being relisted properly", async () => {
+        
+        await marketplace.createListing(
+            listingObj.price,
+            listingObj.itemName,
+            listingObj.itemDesc,
+            listingObj.item
+        ,{from: accounts[0]});
+        
+        await marketplace.buyListing(0,{from: accounts[1]});
+        
+        const tx = await marketplace.relistListing(0,listingObj.item+0, {from: accounts[0]});
+        const { logs } = tx;
+        assert.ok(Array.isArray(logs));
+        assert.equal(logs.length, 1);
+
+        const log = logs[0];
+        assert.equal(log.event, 'ListingCreated');
+        assert.equal(log.args.itemName.toString(), listingObj.itemName);
+        assert.equal(log.args.listingID, 0);
+        assert.equal(log.args.askingPrice, listingObj.price);
+        assert.equal(log.args.uniqueSellerID, accounts[0]);
+        
+    })
 })
 
