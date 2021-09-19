@@ -109,6 +109,7 @@ contract Marketplace {
 
 
     /// @notice Function to print all the active listings
+    /// @dev Listing password is being filtered from listings
     /// @return Listing The list of all active listings
     function fetchMarketItems() public view returns (Listing[] memory) {
         uint unsoldItemCount = itemCount - itemSold;
@@ -117,8 +118,9 @@ contract Marketplace {
         Listing[] memory items = new Listing[](unsoldItemCount);
         for (uint i = 0; i < itemCount; i++) {
             if (listings[i].state == State.UNSOLD) {
-                Listing storage currentItem = listings[i];
+                Listing memory currentItem = listings[i];
                 items[currentIndex] = currentItem;
+                items[currentIndex].item = "";
                 currentIndex += 1;
             }
         }
