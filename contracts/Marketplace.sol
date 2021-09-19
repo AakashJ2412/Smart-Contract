@@ -91,7 +91,7 @@ contract Marketplace {
         address indexed uniqueSellerID,
         address uniqueBuyerID
     );
-    
+
     /// @notice Triggered to store the details of the delivery of a listing on transaction logs
     /// @dev Must not store the item itself for privacy
     /// @param listingID Unique Id for the listing 
